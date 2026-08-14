@@ -177,10 +177,19 @@ const restoreStock = async (adjustments: StockAdjustment[]): Promise<void> => {
 };
 
 export const checkout = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id;
+
+  if (!userId) {
+    throw new AppError("Authentication required", 401);
+  }
+
   const body = req.body as CheckoutBody;
 
   if (!body.customer?.name || !body.customer?.phone || !body.customer?.address) {
-    throw new AppError("Customer name, phone, and address are required", 400);
+    throw new AppError(
+      "Customer name, phone, and address are required",
+      400
+    );
   }
 
   if (!body.paymentMethod || !["COD", "ONLINE"].includes(body.paymentMethod)) {
@@ -188,7 +197,9 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const checkoutItems = await resolveCheckoutItems(body);
-  const { snapshots, stockAdjustments } = await buildCheckoutItems(checkoutItems);
+
+  const { snapshots, stockAdjustments } =
+    await buildCheckoutItems(checkoutItems);
 
   const totalAmount = Number(
     snapshots.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2)
@@ -202,11 +213,20 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
         : 0;
 
   if (paidAmount < 0 || paidAmount > totalAmount) {
-    throw new AppError("paidAmount must be between 0 and totalAmount", 400);
+    throw new AppError(
+      "paidAmount must be between 0 and totalAmount",
+      400
+    );
   }
 
-  const dueAmount = Number((totalAmount - paidAmount).toFixed(2));
-  const paymentStatus = resolvePaymentStatus(totalAmount, paidAmount);
+  const dueAmount = Number(
+    (totalAmount - paidAmount).toFixed(2)
+  );
+
+  const paymentStatus = resolvePaymentStatus(
+    totalAmount,
+    paidAmount
+  );
 
   await decrementStock(stockAdjustments);
 
@@ -215,16 +235,23 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
   try {
     order = await Order.create({
       customer: {
+        user: userId, // ✅ IMPORTANT
         name: body.customer.name.trim(),
         phone: body.customer.phone.trim(),
         address: body.customer.address.trim(),
       },
+
       items: snapshots,
+
       totalAmount,
       paidAmount,
       dueAmount,
+
       paymentStatus,
+
+      // COD order starts as pending
       orderStatus: "PENDING",
+
       paymentMethod: body.paymentMethod,
     });
 
@@ -232,11 +259,17 @@ export const checkout = asyncHandler(async (req: Request, res: Response) => {
       await Cart.findByIdAndDelete(body.cartId);
     }
 
-    await logActivity("ORDER", `Order placed: ${order._id}`, {
-      orderId: order._id,
-      totalAmount,
-      dueAmount,
-    });
+    await logActivity(
+      "ORDER",
+      `Order placed: ${order._id}`,
+      {
+        orderId: order._id,
+        userId,
+        totalAmount,
+        dueAmount,
+        paymentMethod: body.paymentMethod,
+      }
+    );
   } catch (error) {
     await restoreStock(stockAdjustments);
     throw error;
@@ -389,6 +422,59 @@ export const payOrderDue = asyncHandler(
       dueAmount: order.dueAmount,
       paymentStatus: order.paymentStatus,
     });
+
+    res.status(200).json({
+      success: true,
+      data: order,
+    });
+  }
+);
+
+export const getMyOrders = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.user?._id;
+
+    if (!userId) {
+      throw new AppError("Authentication required", 401);
+    }
+
+    const orders = await Order.find({
+      "customer.user": userId,
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: orders.length,
+      data: orders,
+    });
+  }
+);
+
+export const getMyOrderById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.user?._id;
+    const id = req.params.id;
+
+    if (!userId) {
+      throw new AppError("Authentication required", 401);
+    }
+
+    if (
+      !id ||
+      Array.isArray(id) ||
+      !mongoose.Types.ObjectId.isValid(id)
+    ) {
+      throw new AppError("Valid order ID is required", 400);
+    }
+
+    const order = await Order.findOne({
+      _id: id,
+      "customer.user": userId,
+    });
+
+    if (!order) {
+      throw new AppError("Order not found", 404);
+    }
 
     res.status(200).json({
       success: true,

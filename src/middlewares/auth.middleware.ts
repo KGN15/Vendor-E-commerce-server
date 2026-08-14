@@ -6,6 +6,7 @@ import { AppError } from "../utils/AppError";
 import { asyncHandler } from "../utils/asyncHandler";
 
 export interface AuthTokenPayload {
+  _id: string;
   id: string;
   role: UserRole;
 }
@@ -45,6 +46,7 @@ export const protect: RequestHandler = asyncHandler(
       }
 
       req.user = {
+        _id: user._id.toString(),
         id: user._id.toString(),
         role: user.role,
       };
@@ -84,6 +86,7 @@ export const optionalProtect: RequestHandler = asyncHandler(
 
       if (user) {
         req.user = {
+          _id: user._id.toString(),
           id: user._id.toString(),
           role: user.role,
         };

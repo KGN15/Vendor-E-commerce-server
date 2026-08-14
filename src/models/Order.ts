@@ -11,6 +11,7 @@ export type PaymentMethod = "COD" | "ONLINE";
 export type CourierProvider = "STEADFAST" | "PATHAO";
 
 export interface ICustomerDetails {
+  user: Types.ObjectId;
   name: string;
   phone: string;
   address: string;
@@ -28,8 +29,8 @@ export interface IOrderItemSnapshot {
   unitPrice: number;
   subtotal: number;
 }
-
 export interface IOrder extends Document {
+  user: Types.ObjectId;
   customer: ICustomerDetails;
   items: IOrderItemSnapshot[];
   totalAmount: number;
@@ -47,16 +48,25 @@ export interface IOrder extends Document {
 
 const customerSchema = new Schema<ICustomerDetails>(
   {
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
     name: {
       type: String,
       required: [true, "Customer name is required"],
       trim: true,
     },
+
     phone: {
       type: String,
       required: [true, "Customer phone is required"],
       trim: true,
     },
+
     address: {
       type: String,
       required: [true, "Customer address is required"],
@@ -193,3 +203,5 @@ export const PAYMENT_STATUSES: PaymentStatus[] = [
 
 export const Order: Model<IOrder> =
   mongoose.models.Order ?? mongoose.model<IOrder>("Order", orderSchema);
+
+  
