@@ -9,9 +9,6 @@
     "start": "node dist/server.js",
     "seed": "tsx src/scripts/seed.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@types/node": "^22.20.1",
     "bcryptjs": "^3.0.3",
