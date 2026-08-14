@@ -19,7 +19,9 @@ router.use(protect, authorize("ADMIN"));
 router.get("/analytics", getAnalytics);
 
 // Customers
-router.get("/customers", getCustomers);
-router.get("/customers/:id", getCustomerById);
+router.get("/customers", getCustomers, protect,
+  authorize("ADMIN"),);
+router.get("/customers/:id", getCustomerById, protect,
+  authorize("ADMIN"),);
 
 export default router;

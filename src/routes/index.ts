@@ -21,7 +21,7 @@ router.use("/categories", categoryRoutes);
 router.use("/orders", orderRoutes);
 router.use("/payments", paymentRoutes);
 router.use("/wishlist", wishlistRoutes);
-router.use("/upload", uploadRoutes);
+router.use("/uploads", uploadRoutes);
 router.use("/barcode", barcodeRoutes);
 router.use("/admin", adminRoutes);
 router.use("/health", healthRoutes);

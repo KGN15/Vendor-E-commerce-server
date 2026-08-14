@@ -330,47 +330,98 @@ export const updateOrderStatus = asyncHandler(
       courierProvider?: "STEADFAST" | "PATHAO";
     };
 
-    if (!orderStatus || !ORDER_STATUSES.includes(orderStatus)) {
-      throw new AppError("Valid orderStatus is required", 400);
+    if (
+      !orderStatus ||
+      !ORDER_STATUSES.includes(orderStatus as OrderStatus)
+    ) {
+      throw new AppError(
+        `Valid orderStatus is required. Allowed values: ${ORDER_STATUSES.join(
+          ", "
+        )}`,
+        400
+      );
     }
 
-    const order = await Order.findById(id);
+    const existingOrder = await Order.findById(id);
 
-    if (!order) {
+    if (!existingOrder) {
       throw new AppError("Order not found", 404);
     }
 
-    if (order.orderStatus === "CANCELLED") {
+    if (existingOrder.orderStatus === "CANCELLED") {
       throw new AppError("Cannot update a cancelled order", 409);
     }
 
-    if (order.orderStatus === "DELIVERED" && orderStatus !== "DELIVERED") {
-      throw new AppError("Delivered orders cannot be moved to another status", 409);
+    if (
+      existingOrder.orderStatus === "DELIVERED" &&
+      orderStatus !== "DELIVERED"
+    ) {
+      throw new AppError(
+        "Delivered orders cannot be moved to another status",
+        409
+      );
     }
 
-    order.orderStatus = orderStatus;
+    const updateData: Record<string, any> = {
+      orderStatus,
+    };
 
-    if (orderStatus === "SHIPPED" && !order.consignmentId) {
+    /*
+     * Only create courier shipment when moving to SHIPPED.
+     */
+    if (orderStatus === "SHIPPED" && !existingOrder.consignmentId) {
       const shipment = await createCourierShipment(
-        order._id,
-        courierProvider ?? order.courierProvider ?? "STEADFAST"
+        existingOrder._id,
+        courierProvider ??
+          existingOrder.courierProvider ??
+          "STEADFAST"
       );
 
-      order.courierProvider = shipment.provider;
-      order.consignmentId = shipment.consignmentId;
-      order.courierStatus = shipment.status;
+      updateData.courierProvider = shipment.provider;
+      updateData.consignmentId = shipment.consignmentId;
+      updateData.courierStatus = shipment.status;
     }
 
-    await order.save();
+    /*
+     * IMPORTANT:
+     * Use findByIdAndUpdate instead of document.save().
+     *
+     * save() validates the entire old order document.
+     * Some old orders may have missing customer.user, causing:
+     *
+     * Order validation failed:
+     * customer.user: Path `user` is required
+     *
+     * We only need to update orderStatus here.
+     */
+    const updatedOrder = await Order.findByIdAndUpdate(
+      id,
+      {
+        $set: updateData,
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
-    await logActivity("ORDER", `Order status updated to ${orderStatus}`, {
-      orderId: order._id,
-      orderStatus,
-    });
+    if (!updatedOrder) {
+      throw new AppError("Failed to update order", 500);
+    }
+
+    await logActivity(
+      "ORDER",
+      `Order status updated to ${orderStatus}`,
+      {
+        orderId: updatedOrder._id,
+        orderStatus,
+      }
+    );
 
     res.status(200).json({
       success: true,
-      data: order,
+      message: "Order status updated successfully",
+      data: updatedOrder,
     });
   }
 );
@@ -482,3 +533,46 @@ export const getMyOrderById = asyncHandler(
     });
   }
 );
+export const getOrderById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const order = await Order.findById(id)
+      .populate({
+        path: "items.product",
+        select: "name thumbnail images",
+      })
+      .populate({
+        path: "items.variant",
+        select: "size color design sizeCode price",
+      })
+      .populate({
+        path: "customer",
+        populate: {
+          path: "user",
+          select: "name email",
+        },
+      });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        order,
+      },
+    });
+  } catch (error: any) {
+    console.error("Get order by ID error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to get order",
+    });
+  }
+};

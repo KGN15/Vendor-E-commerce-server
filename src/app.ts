@@ -34,6 +34,7 @@ app.use(
 
 app.use("/api", routes);
 
+
 app.get("/api", (_req: Request, res: Response) => {
   res.status(200).json({
     success: true,

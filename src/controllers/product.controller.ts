@@ -509,3 +509,297 @@ export const getVariantByBarcode = asyncHandler(
     });
   }
 );
+export const updateProduct = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      name,
+      description,
+      fullDescription,
+      category,
+      images,
+      thumbnail,
+      highlights,
+      isActive,
+      variants,
+    } = req.body;
+
+    // Find product
+    const product = await Product.findById(id);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found.",
+      });
+    }
+
+    /*
+     * Update only fields that were actually sent.
+     */
+    if (name !== undefined) {
+      product.name = String(name).trim();
+    }
+
+    if (description !== undefined) {
+      product.description = String(description).trim();
+    }
+
+    if (fullDescription !== undefined) {
+      product.fullDescription = String(fullDescription).trim();
+    }
+
+    if (category !== undefined) {
+      product.category = category;
+    }
+
+    if (Array.isArray(images)) {
+      product.images = images
+        .map((image: unknown) => String(image).trim())
+        .filter(Boolean);
+    }
+
+    if (thumbnail !== undefined) {
+      product.thumbnail = String(thumbnail).trim();
+    }
+
+    if (Array.isArray(highlights)) {
+      product.highlights = highlights
+        .map((highlight: unknown) => String(highlight).trim())
+        .filter(Boolean);
+    }
+
+    if (isActive !== undefined) {
+      product.isActive = Boolean(isActive);
+    }
+
+    /*
+     * Save product changes.
+     */
+    await product.save();
+
+    /*
+     * Update variants
+     *
+     * Frontend sends:
+     *
+     * variants: [
+     *   {
+     *     _id,
+     *     size,
+     *     color,
+     *     design,
+     *     sizeCode,
+     *     price,
+     *     stock,
+     *     isActive
+     *   }
+     * ]
+     */
+    if (Array.isArray(variants)) {
+      const incomingVariantIds: string[] = [];
+
+      for (const variantData of variants) {
+        if (!variantData || typeof variantData !== "object") {
+          continue;
+        }
+
+        const {
+          _id,
+          size,
+          color,
+          design,
+          sizeCode,
+          price,
+          stock,
+          isActive: variantIsActive,
+        } = variantData;
+
+        // Validate size code
+        if (!/^\d{4}$/.test(String(sizeCode || "").trim())) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid size code: ${sizeCode}. Size code must be exactly 4 digits.`,
+          });
+        }
+
+        // Validate price
+        const numericPrice = Number(price);
+
+        if (!Number.isFinite(numericPrice) || numericPrice < 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid price for variant ${sizeCode}.`,
+          });
+        }
+
+        // Validate stock
+        const numericStock = Number(stock);
+
+        if (!Number.isFinite(numericStock) || numericStock < 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid stock for variant ${sizeCode}.`,
+          });
+        }
+
+        /*
+         * Existing variant
+         */
+        if (_id) {
+          const variant = await ProductVariant.findOne({
+            _id,
+            product: id,
+          });
+
+          if (!variant) {
+            return res.status(404).json({
+              success: false,
+              message: `Variant ${_id} not found for this product.`,
+            });
+          }
+
+          variant.size = size?.trim() || "";
+          variant.color = color?.trim() || "";
+          variant.design = design?.trim() || "";
+          variant.sizeCode = String(sizeCode).trim();
+          variant.price = numericPrice;
+          variant.stock = numericStock;
+          variant.isActive = variantIsActive !== false;
+
+          await variant.save();
+
+          incomingVariantIds.push(String(variant._id));
+        } else {
+          /*
+           * New variant
+           */
+          const newVariant = await ProductVariant.create({
+            product: id,
+            size: size?.trim() || "",
+            color: color?.trim() || "",
+            design: design?.trim() || "",
+            sizeCode: String(sizeCode).trim(),
+            price: numericPrice,
+            stock: numericStock,
+            isActive: variantIsActive !== false,
+          });
+
+          incomingVariantIds.push(String(newVariant._id));
+        }
+      }
+
+      /*
+       * Remove variants that were deleted from the frontend.
+       *
+       * Example:
+       * Existing variants = A, B, C
+       * Frontend sends = A, C
+       * B will be deleted.
+       */
+      await ProductVariant.deleteMany({
+        product: id,
+        _id: {
+          $nin: incomingVariantIds,
+        },
+      });
+    }
+
+    /*
+     * Get fresh data after update.
+     */
+    const updatedProduct = await Product.findById(id);
+
+    const updatedVariants = await ProductVariant.find({
+      product: id,
+    }).sort({ createdAt: 1 });
+
+    return res.status(200).json({
+      success: true,
+      message: "Product updated successfully.",
+      data: {
+        product: updatedProduct,
+        variants: updatedVariants,
+      },
+    });
+  } catch (error: any) {
+    console.error("UPDATE PRODUCT ERROR:", error);
+
+    /*
+     * Handle duplicate / validation errors.
+     */
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "A product or variant with the same unique value already exists.",
+        error: error?.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update product.",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error?.message
+          : undefined,
+    });
+  }
+};
+
+/**
+ * DELETE PRODUCT
+ * DELETE /products/:id
+ */
+export const deleteProduct = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const { id } = req.params;
+
+    const product = await Product.findById(id);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found.",
+      });
+    }
+
+    /*
+     * Delete all variants belonging to this product first.
+     */
+    await ProductVariant.deleteMany({
+      product: id,
+    });
+
+    /*
+     * Delete the product.
+     */
+    await Product.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Product deleted successfully.",
+      data: {
+        productId: id,
+      },
+    });
+  } catch (error: any) {
+    console.error("DELETE PRODUCT ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete product.",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error?.message
+          : undefined,
+    });
+  }
+};

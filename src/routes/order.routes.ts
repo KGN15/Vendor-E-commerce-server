@@ -1,9 +1,11 @@
 import { Router } from "express";
+
 import {
   checkout,
   getOrders,
   getMyOrders,
   getMyOrderById,
+  getOrderById,
   payOrderDue,
   updateOrderStatus,
 } from "../controllers/order.controller";
@@ -27,7 +29,6 @@ router.get("/my-orders", protect, getMyOrders);
 
 router.get("/my-orders/:id", protect, getMyOrderById);
 
-
 /*
 |--------------------------------------------------------------------------
 | Admin
@@ -39,6 +40,13 @@ router.get(
   protect,
   authorize("ADMIN"),
   getOrders
+);
+
+router.get(
+  "/:id",
+  protect,
+  authorize("ADMIN"),
+  getOrderById
 );
 
 router.patch(

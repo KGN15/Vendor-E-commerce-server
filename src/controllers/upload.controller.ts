@@ -1,36 +1,65 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import { AppError } from "../utils/AppError";
-import { isCloudinaryConfigured } from "../config/env";
-import { uploadImage } from "../utils/uploadService";
+import cloudinary from "../config/cloudinary";
 
-export const uploadImages = asyncHandler(
+export const uploadImage = asyncHandler(
   async (req: Request, res: Response) => {
-    const files = req.files as Express.Multer.File[] | undefined;
-    const singleFile = req.file as Express.Multer.File | undefined;
-
-    const incomingFiles = files?.length
-      ? files
-      : singleFile
-        ? [singleFile]
-        : [];
-
-    if (incomingFiles.length === 0) {
-      throw new AppError("At least one image file is required", 400);
+    if (!req.file) {
+      throw new AppError("No image file provided.", 400);
     }
 
-    const urls = await Promise.all(
-      incomingFiles.map((file) => uploadImage(file.buffer, file.originalname))
-    );
+    const file = req.file;
+
+    const uploadResult = await new Promise<{
+      secure_url: string;
+      public_id: string;
+      width?: number;
+      height?: number;
+      format?: string;
+      bytes?: number;
+    }>((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: "vendorstore/products",
+          resource_type: "image",
+        },
+        (error, result) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          if (!result) {
+            reject(new Error("Cloudinary upload returned no result."));
+            return;
+          }
+
+          resolve({
+            secure_url: result.secure_url,
+            public_id: result.public_id,
+            width: result.width,
+            height: result.height,
+            format: result.format,
+            bytes: result.bytes,
+          });
+        },
+      );
+
+      uploadStream.end(file.buffer);
+    });
 
     res.status(201).json({
       success: true,
+      message: "Image uploaded successfully.",
       data: {
-        urls,
-        thumbnail: urls[0],
-        provider: isCloudinaryConfigured() ? "cloudinary" : "local",
-        count: urls.length,
+        url: uploadResult.secure_url,
+        publicId: uploadResult.public_id,
+        width: uploadResult.width,
+        height: uploadResult.height,
+        format: uploadResult.format,
+        size: uploadResult.bytes,
       },
     });
-  }
+  },
 );

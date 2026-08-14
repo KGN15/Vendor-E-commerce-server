@@ -57,7 +57,8 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   });
 
   const token = signToken({
-    id: user._id.toString(),
+    _id: user._id.toString(),
+    id:user._id.toString(),
     role: user.role,
   });
 
@@ -87,8 +88,9 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const token = signToken({
-    id: user._id.toString(),
+    _id: user._id.toString(),
     role: user.role,
+    id:user._id.toString(),
   });
 
   res.status(200).json({
@@ -144,8 +146,9 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const token = signToken({
-    id: user._id.toString(),
+    _id: user._id.toString(),
     role: user.role,
+    id:user._id.toString(),
   });
 
   res.status(200).json({

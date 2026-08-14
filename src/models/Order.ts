@@ -30,7 +30,6 @@ export interface IOrderItemSnapshot {
   subtotal: number;
 }
 export interface IOrder extends Document {
-  user: Types.ObjectId;
   customer: ICustomerDetails;
   items: IOrderItemSnapshot[];
   totalAmount: number;
