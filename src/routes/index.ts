@@ -19,8 +19,8 @@ const router = Router();
 
 router.use("/auth", authRoutes);
 router.use("/products", productRoutes);
-router.use("/api/admin/bug-reports", adminBugReportRoutes);
-router.use("/api/bug-reports", bugReportRoutes);
+router.use("/admin/bug-reports", adminBugReportRoutes);
+router.use("/bug-reports", bugReportRoutes);
 router.use(reviewRoutes);
 router.use("/categories", categoryRoutes);
 router.use("/orders", orderRoutes);
