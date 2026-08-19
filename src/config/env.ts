@@ -16,12 +16,12 @@ export const env = {
   nodeEnv: getEnv("NODE_ENV", "development"),
   port: Number(getEnv("PORT", "5000")),
   mongodbUri: getEnv("MONGODB_URI"),
-  corsOrigin: getEnv("CORS_ORIGIN", "http://localhost:3000"),
+  corsOrigins: [
+    getEnv("CORS_ORIGIN_1", process.env.CORS_ORIGIN_1),
+    getEnv("CORS_ORIGIN_2", process.env.CORS_ORIGIN_1),
+  ],
   isProduction: getEnv("NODE_ENV", "development") === "production",
-  jwtSecret: getEnv(
-    "JWT_SECRET",
-    "dev-jwt-secret-change-in-production"
-  ),
+  jwtSecret: getEnv("JWT_SECRET", "dev-jwt-secret-change-in-production"),
   cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME ?? "",
   cloudinaryApiKey: process.env.CLOUDINARY_API_KEY ?? "",
   cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET ?? "",
@@ -31,7 +31,5 @@ export const env = {
 
 export const isCloudinaryConfigured = (): boolean =>
   Boolean(
-    env.cloudinaryCloudName &&
-      env.cloudinaryApiKey &&
-      env.cloudinaryApiSecret
+    env.cloudinaryCloudName && env.cloudinaryApiKey && env.cloudinaryApiSecret,
   );

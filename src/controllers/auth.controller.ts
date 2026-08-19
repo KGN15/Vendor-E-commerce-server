@@ -38,7 +38,9 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError("Password must be at least 6 characters", 400);
   }
 
-  const existingUser = await User.findOne({ email: email.trim().toLowerCase() });
+  const existingUser = await User.findOne({
+    email: email.trim().toLowerCase(),
+  });
 
   if (existingUser) {
     throw new AppError("Email is already registered", 409);
@@ -58,7 +60,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 
   const token = signToken({
     _id: user._id.toString(),
-    id:user._id.toString(),
+    id: user._id.toString(),
     role: user.role,
   });
 
@@ -80,17 +82,21 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const user = await User.findOne({ email: email.trim().toLowerCase() }).select(
-    "+password"
+    "+password",
   );
 
-  if (!user || user.authProvider === "GOOGLE" || !(await user.comparePassword(password))) {
+  if (
+    !user ||
+    user.authProvider === "GOOGLE" ||
+    !(await user.comparePassword(password))
+  ) {
     throw new AppError("Invalid email or password", 401);
   }
 
   const token = signToken({
     _id: user._id.toString(),
     role: user.role,
-    id:user._id.toString(),
+    id: user._id.toString(),
   });
 
   res.status(200).json({
@@ -148,7 +154,7 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
   const token = signToken({
     _id: user._id.toString(),
     role: user.role,
-    id:user._id.toString(),
+    id: user._id.toString(),
   });
 
   res.status(200).json({

@@ -17,23 +17,26 @@ const app: Application = express();
 
 app.use(
   cors({
-    origin: env.corsOrigin,
+    origin: (origin, callback) => {
+      if (!origin) {
+        return callback(null, true);
+      }
+      if (env.corsOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 app.use(json({ limit: "1mb" }));
 app.use(urlencoded({ extended: true }));
 
-app.use(
-  "/uploads",
-  express.static(path.resolve(process.cwd(), env.uploadDir))
-
-);
+app.use("/uploads", express.static(path.resolve(process.cwd(), env.uploadDir)));
 
 app.use("/api", routes);
-
 
 app.get("/api", (_req: Request, res: Response) => {
   res.status(200).json({
@@ -52,7 +55,7 @@ app.use(
     err: Error & { status?: number; body?: unknown },
     _req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     if (res.headersSent) {
       next(err);
@@ -82,7 +85,7 @@ app.use(
       success: false,
       message,
     });
-  }
+  },
 );
 app.use((req: Request, _res: Response, next: NextFunction) => {
   console.log(`❌ 404 Hit on: [${req.method}] ${req.originalUrl}`);
