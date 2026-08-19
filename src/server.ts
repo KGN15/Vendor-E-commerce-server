@@ -7,7 +7,7 @@ const startServer = async (): Promise<void> => {
 
   const server = app.listen(env.port, () => {
     console.log(`Server running on port ${env.port} (${env.nodeEnv})`);
-    console.log(`CORS origin: ${env.corsOrigin}`);
+    console.log(`CORS origin: ${env.corsOrigins}`);
   });
 
   const shutdown = (signal: string) => {
