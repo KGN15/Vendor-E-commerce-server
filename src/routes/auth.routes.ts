@@ -4,6 +4,7 @@ import {
   googleAuth,
   login,
   register,
+  updateMe,
 } from "../controllers/auth.controller";
 import { protect } from "../middlewares/auth.middleware";
 

@@ -183,3 +183,50 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
     data: sanitizeUser(user),
   });
 });
+interface UpdateMeBody {
+  name: string;
+}
+
+export const updateMe = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) {
+    throw new AppError("Authentication required", 401);
+  }
+
+  const { name } = req.body as UpdateMeBody;
+
+  if (!name || typeof name !== "string") {
+    throw new AppError("Name is required", 400);
+  }
+
+  const trimmedName = name.trim();
+
+  if (trimmedName.length < 2) {
+    throw new AppError("Name must be at least 2 characters", 400);
+  }
+
+  if (trimmedName.length > 120) {
+    throw new AppError("Name cannot exceed 120 characters", 400);
+  }
+
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
+  user.name = trimmedName;
+
+  await user.save();
+
+  await logActivity("USER", `Profile updated: ${user.email}`, {
+    userId: user._id,
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      message: "Profile updated successfully",
+      user: sanitizeUser(user),
+    },
+  });
+});
