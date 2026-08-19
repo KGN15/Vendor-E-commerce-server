@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 
-import { BugReport } from "../models/BugReport";
+import { BugReport } from "../models/bugReport.model";
 import { BugReply } from "../models/BugReply";
 
 import { asyncHandler } from "../utils/asyncHandler";

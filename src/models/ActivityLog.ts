@@ -6,7 +6,9 @@ export type ActivityType =
   | "REVIEW"
   | "USER"
   | "PRODUCT"
-  | "WISHLIST";
+  | "WISHLIST"
+  | "BUG_REPORT";
+  
 
 export interface IActivityLog extends Document {
   type: ActivityType;
