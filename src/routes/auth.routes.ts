@@ -21,6 +21,6 @@ router.post("/google", googleAuth);
 
 router.get("/me", protect, getMe);
 
-router.patch("/me", protect, upload.single("avatar"), updateMe);
+router.patch("/me", protect, upload.single("image"), updateMe);
 
 export default router;
