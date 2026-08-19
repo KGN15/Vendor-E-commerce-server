@@ -10,12 +10,17 @@ import uploadRoutes from "./upload.routes";
 import barcodeRoutes from "./barcode.routes";
 import reviewRoutes from "./review.routes";
 import adminRoutes from "./admin.routes";
+import bugReportRoutes from "./bugReport.routes";
 import healthRoutes from "./health.routes";
+import adminBugReportRoutes from "./adminBugReport.routes";
+
 
 const router = Router();
 
 router.use("/auth", authRoutes);
 router.use("/products", productRoutes);
+router.use("/api/admin/bug-reports", adminBugReportRoutes);
+router.use("/api/bug-reports", bugReportRoutes);
 router.use(reviewRoutes);
 router.use("/categories", categoryRoutes);
 router.use("/orders", orderRoutes);
