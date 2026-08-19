@@ -1,5 +1,9 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
+/* =========================================================
+   ACTIVITY TYPES
+========================================================= */
+
 export type ActivityType =
   | "ORDER"
   | "PAYMENT"
@@ -8,7 +12,10 @@ export type ActivityType =
   | "PRODUCT"
   | "WISHLIST"
   | "BUG_REPORT";
-  
+
+/* =========================================================
+   INTERFACE
+========================================================= */
 
 export interface IActivityLog extends Document {
   type: ActivityType;
@@ -18,28 +25,52 @@ export interface IActivityLog extends Document {
   updatedAt: Date;
 }
 
+/* =========================================================
+   SCHEMA
+========================================================= */
+
 const activityLogSchema = new Schema<IActivityLog>(
   {
     type: {
       type: String,
-      enum: ["ORDER", "PAYMENT", "REVIEW", "USER", "PRODUCT", "WISHLIST"],
+      enum: [
+        "ORDER",
+        "PAYMENT",
+        "REVIEW",
+        "USER",
+        "PRODUCT",
+        "WISHLIST",
+        "BUG_REPORT",
+      ],
       required: true,
       index: true,
     },
+
     message: {
       type: String,
       required: true,
       trim: true,
     },
+
     metadata: {
       type: Schema.Types.Mixed,
       default: {},
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  },
 );
 
+/* =========================================================
+   INDEXES
+========================================================= */
+
 activityLogSchema.index({ createdAt: -1 });
+
+/* =========================================================
+   MODEL
+========================================================= */
 
 export const ActivityLog: Model<IActivityLog> =
   mongoose.models.ActivityLog ??
