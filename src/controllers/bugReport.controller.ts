@@ -135,7 +135,7 @@ export const createBugReport = asyncHandler(
     ------------------------------------------------------- */
 
     await logActivity(
-      `BUG_REPORT`,
+      'BUG_REPORT',
       `New bug report submitted: ${bugReport.title}`,
       {
         userId: req.user.id,

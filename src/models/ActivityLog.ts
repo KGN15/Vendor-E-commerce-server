@@ -1,21 +1,16 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
-/* =========================================================
-   ACTIVITY TYPES
-========================================================= */
+export const ACTIVITY_TYPES = [
+  "ORDER",
+  "PAYMENT",
+  "REVIEW",
+  "USER",
+  "PRODUCT",
+  "WISHLIST",
+  "BUG_REPORT",
+] as const;
 
-export type ActivityType =
-  | "ORDER"
-  | "PAYMENT"
-  | "REVIEW"
-  | "USER"
-  | "PRODUCT"
-  | "WISHLIST"
-  | "BUG_REPORT";
-
-/* =========================================================
-   INTERFACE
-========================================================= */
+export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
 export interface IActivityLog extends Document {
   type: ActivityType;
@@ -25,23 +20,11 @@ export interface IActivityLog extends Document {
   updatedAt: Date;
 }
 
-/* =========================================================
-   SCHEMA
-========================================================= */
-
 const activityLogSchema = new Schema<IActivityLog>(
   {
     type: {
       type: String,
-      enum: [
-        "ORDER",
-        "PAYMENT",
-        "REVIEW",
-        "USER",
-        "PRODUCT",
-        "WISHLIST",
-        "BUG_REPORT",
-      ],
+      enum: ACTIVITY_TYPES,
       required: true,
       index: true,
     },
@@ -62,16 +45,8 @@ const activityLogSchema = new Schema<IActivityLog>(
   },
 );
 
-/* =========================================================
-   INDEXES
-========================================================= */
-
 activityLogSchema.index({ createdAt: -1 });
 
-/* =========================================================
-   MODEL
-========================================================= */
-
 export const ActivityLog: Model<IActivityLog> =
-  mongoose.models.ActivityLog ??
+  mongoose.models.ActivityLog ||
   mongoose.model<IActivityLog>("ActivityLog", activityLogSchema);
