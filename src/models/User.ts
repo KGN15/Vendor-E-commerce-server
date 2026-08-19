@@ -7,12 +7,18 @@ export type AuthProvider = "LOCAL" | "GOOGLE";
 export interface IUser extends Document {
   name: string;
   email: string;
+
+  avatar?: string;
+  avatarPublicId?: string;
+
   password?: string;
   role: UserRole;
   authProvider: AuthProvider;
   googleId?: string;
+
   createdAt: Date;
   updatedAt: Date;
+
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -52,8 +58,17 @@ const userSchema = new Schema<IUser>(
       sparse: true,
       trim: true,
     },
+    avatar: {
+      type: String,
+      trim: true,
+    },
+
+    avatarPublicId: {
+      type: String,
+      trim: true,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 userSchema.pre("save", async function (next) {
@@ -66,7 +81,7 @@ userSchema.pre("save", async function (next) {
 });
 
 userSchema.methods.comparePassword = async function (
-  candidatePassword: string
+  candidatePassword: string,
 ): Promise<boolean> {
   if (!this.password) {
     return false;
@@ -77,6 +92,3 @@ userSchema.methods.comparePassword = async function (
 
 export const User: Model<IUser> =
   mongoose.models.User ?? mongoose.model<IUser>("User", userSchema);
-
-
-  

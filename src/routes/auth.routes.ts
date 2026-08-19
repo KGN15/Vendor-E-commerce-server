@@ -1,4 +1,5 @@
 import { Router } from "express";
+
 import {
   getMe,
   googleAuth,
@@ -6,7 +7,9 @@ import {
   register,
   updateMe,
 } from "../controllers/auth.controller";
+
 import { protect } from "../middlewares/auth.middleware";
+import { upload } from "../middlewares/upload.middleware";
 
 const router = Router();
 
@@ -18,6 +21,6 @@ router.post("/google", googleAuth);
 
 router.get("/me", protect, getMe);
 
-router.patch("/me", protect, updateMe);
+router.patch("/me", protect, upload.single("avatar"), updateMe);
 
 export default router;

@@ -6,7 +6,9 @@ import { UserRole, AuthProvider } from "../models/User";
 const JWT_EXPIRES_IN = "7d";
 
 export const signToken = (payload: AuthTokenPayload): string =>
-  jwt.sign(payload, env.jwtSecret, { expiresIn: JWT_EXPIRES_IN });
+  jwt.sign(payload, env.jwtSecret, {
+    expiresIn: JWT_EXPIRES_IN,
+  });
 
 export const sanitizeUser = (user: {
   _id: { toString(): string };
@@ -14,6 +16,10 @@ export const sanitizeUser = (user: {
   email: string;
   role: UserRole;
   authProvider?: AuthProvider;
+
+  avatar?: string;
+  avatarPublicId?: string;
+
   createdAt?: Date;
   updatedAt?: Date;
 }) => ({
@@ -22,6 +28,9 @@ export const sanitizeUser = (user: {
   email: user.email,
   role: user.role,
   authProvider: user.authProvider ?? "LOCAL",
+
+  avatar: user.avatar ?? null,
+
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });

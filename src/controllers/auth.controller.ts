@@ -1,3 +1,4 @@
+import cloudinary from "../config/cloudinary";
 import { Request, Response } from "express";
 import crypto from "crypto";
 import { User } from "../models/User";
@@ -183,8 +184,10 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
     data: sanitizeUser(user),
   });
 });
+
 interface UpdateMeBody {
-  name: string;
+  name?: string;
+  removeImage?: string;
 }
 
 export const updateMe = asyncHandler(async (req: Request, res: Response) => {
@@ -192,21 +195,31 @@ export const updateMe = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError("Authentication required", 401);
   }
 
-  const { name } = req.body as UpdateMeBody;
+  const { name, removeImage } = req.body as UpdateMeBody;
 
-  if (!name || typeof name !== "string") {
-    throw new AppError("Name is required", 400);
+  /* =========================================================
+     VALIDATE NAME
+  ========================================================= */
+
+  if (name !== undefined) {
+    if (typeof name !== "string") {
+      throw new AppError("Name must be a string", 400);
+    }
+
+    const trimmedName = name.trim();
+
+    if (trimmedName.length < 2) {
+      throw new AppError("Name must be at least 2 characters", 400);
+    }
+
+    if (trimmedName.length > 120) {
+      throw new AppError("Name cannot exceed 120 characters", 400);
+    }
   }
 
-  const trimmedName = name.trim();
-
-  if (trimmedName.length < 2) {
-    throw new AppError("Name must be at least 2 characters", 400);
-  }
-
-  if (trimmedName.length > 120) {
-    throw new AppError("Name cannot exceed 120 characters", 400);
-  }
+  /* =========================================================
+     FIND USER
+  ========================================================= */
 
   const user = await User.findById(req.user.id);
 
@@ -214,13 +227,109 @@ export const updateMe = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError("User not found", 404);
   }
 
-  user.name = trimmedName;
+  /* =========================================================
+     UPDATE NAME
+  ========================================================= */
+
+  if (name !== undefined) {
+    user.name = name.trim();
+  }
+
+  /* =========================================================
+     REMOVE PROFILE IMAGE
+  ========================================================= */
+
+  if (removeImage === "true" && !req.file) {
+    if (user.avatarPublicId) {
+      try {
+        await cloudinary.uploader.destroy(user.avatarPublicId, {
+          resource_type: "image",
+        });
+      } catch (error) {
+        console.error("Failed to delete profile image from Cloudinary:", error);
+      }
+    }
+
+    user.avatar = undefined;
+    user.avatarPublicId = undefined;
+  }
+
+  /* =========================================================
+     UPLOAD NEW PROFILE IMAGE
+  ========================================================= */
+
+  if (req.file) {
+    const file = req.file;
+
+    const uploadResult = await new Promise<{
+      secure_url: string;
+      public_id: string;
+    }>((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: "vendorstore/profiles",
+          resource_type: "image",
+        },
+        (error, result) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          if (!result) {
+            reject(new Error("Cloudinary upload returned no result."));
+            return;
+          }
+
+          resolve({
+            secure_url: result.secure_url,
+            public_id: result.public_id,
+          });
+        },
+      );
+
+      uploadStream.end(file.buffer);
+    });
+
+    /* ---------------------------------------------------------
+       DELETE OLD IMAGE
+    --------------------------------------------------------- */
+
+    if (user.avatarPublicId) {
+      try {
+        await cloudinary.uploader.destroy(user.avatarPublicId, {
+          resource_type: "image",
+        });
+      } catch (error) {
+        console.error("Failed to delete old profile image:", error);
+      }
+    }
+
+    /* ---------------------------------------------------------
+       SET NEW IMAGE
+    --------------------------------------------------------- */
+
+    user.avatar = uploadResult.secure_url;
+    user.avatarPublicId = uploadResult.public_id;
+  }
+
+  /* =========================================================
+     SAVE
+  ========================================================= */
 
   await user.save();
+
+  /* =========================================================
+     ACTIVITY LOG
+  ========================================================= */
 
   await logActivity("USER", `Profile updated: ${user.email}`, {
     userId: user._id,
   });
+
+  /* =========================================================
+     RESPONSE
+  ========================================================= */
 
   res.status(200).json({
     success: true,
